@@ -1,0 +1,9 @@
+{
+  "name": "@minecraft-hosting/utils",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "files": [
+    "*.ts"
+  ]
+}

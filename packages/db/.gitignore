@@ -1,0 +1,11 @@
+.gitignore
+node_modules
+dist
+.next
+out
+build
+.turbo
+.vercel
+.env
+.env.local
+*.log
