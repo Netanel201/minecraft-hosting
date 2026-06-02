@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: minecraft_db
+    environment:
+      POSTGRES_USER: minecraft_user
+      POSTGRES_PASSWORD: minecraft_password_change_me
+      POSTGRES_DB: minecraft_hosting
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minecraft_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minecraft_network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: minecraft_redis
+    command: redis-server --appendonly yes --requirepass redis_password_change_me
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minecraft_network
+    restart: unless-stopped
+
+  # Minecraft Server Manager
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: minecraft_api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://minecraft_user:minecraft_password_change_me@postgres:5432/minecraft_hosting
+      REDIS_URL: redis://:redis_password_change_me@redis:6379
+      JWT_SECRET: your_jwt_secret_change_me
+      NEXTAUTH_SECRET: your_nextauth_secret_change_me
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    networks:
+      - minecraft_network
+    restart: unless-stopped
+
+  # Frontend
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: minecraft_web
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/.next
+      - /app/node_modules
+    networks:
+      - minecraft_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  minecraft_network:
+    driver: bridge

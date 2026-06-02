@@ -1,0 +1,26 @@
+{
+  "name": "minecraft-hosting-platform",
+  "version": "1.0.0",
+  "description": "Professional Minecraft Hosting Platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/web\" \"npm run dev -w apps/api\"",
+    "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "setup": "npm install && npm run setup -w packages/db",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose up -d --build",
+    "test": "npm run test -w apps/api && npm run test -w apps/web",
+    "lint": "npm run lint -w apps/web && npm run lint -w apps/api"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.2.0",
+    "typescript": "^5.3.0"
+  }
+}
