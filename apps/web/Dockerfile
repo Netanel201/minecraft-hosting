@@ -3,11 +3,13 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+COPY apps/web/package*.json ./apps/web/
+
+RUN npm install
+RUN cd apps/web && npm install
 
 COPY . .
-RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

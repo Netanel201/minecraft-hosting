@@ -2,31 +2,25 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
     container_name: minecraft_db
     environment:
-      POSTGRES_USER: minecraft_user
-      POSTGRES_PASSWORD: minecraft_password_change_me
-      POSTGRES_DB: minecraft_hosting
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_DB: minecraft
+      POSTGRES_USER: minecraft
+      POSTGRES_PASSWORD: minecraft123
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U minecraft_user"]
+      test: ["CMD-SHELL", "pg_isready -U minecraft"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - minecraft_network
-    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: minecraft_redis
-    command: redis-server --appendonly yes --requirepass redis_password_change_me
-    volumes:
-      - redis_data:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -34,22 +28,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - minecraft_network
-    restart: unless-stopped
 
-  # Minecraft Server Manager
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
     container_name: minecraft_api
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://minecraft_user:minecraft_password_change_me@postgres:5432/minecraft_hosting
-      REDIS_URL: redis://:redis_password_change_me@redis:6379
-      JWT_SECRET: your_jwt_secret_change_me
-      NEXTAUTH_SECRET: your_nextauth_secret_change_me
+      DATABASE_URL: postgresql://minecraft:minecraft123@postgres:5432/minecraft
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-secret-key-change-this
+      API_PORT: 3001
     ports:
       - "3001:3001"
     depends_on:
@@ -58,37 +48,30 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./apps/api:/app
-      - /app/node_modules
-    networks:
-      - minecraft_network
-    restart: unless-stopped
+      - ./apps/api:/app/apps/api
+      - /var/run/docker.sock:/var/run/docker.sock
+      - minecraft_servers:/minecraft-servers
+    command: npm run dev
 
-  # Frontend
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: minecraft_web
     environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:
       - "3000:3000"
     depends_on:
       - api
     volumes:
-      - ./apps/web:/app
-      - /app/.next
-      - /app/node_modules
-    networks:
-      - minecraft_network
-    restart: unless-stopped
+      - ./apps/web:/app/apps/web
+    command: npm run dev
 
 volumes:
   postgres_data:
-  redis_data:
+  minecraft_servers:
 
 networks:
-  minecraft_network:
-    driver: bridge
+  default:
+    name: minecraft-network

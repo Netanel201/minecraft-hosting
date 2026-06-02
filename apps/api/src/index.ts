@@ -7,9 +7,7 @@ import dotenv from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import authRoutes from './routes/auth'
 import serverRoutes from './routes/servers'
-import statsRoutes from './routes/stats'
 import { errorHandler } from './middleware/errorHandler'
-import { ddosProtection } from './utils/security'
 
 dotenv.config()
 
@@ -29,32 +27,30 @@ export { io }
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(ddosProtection)
+
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 50,
+  skip: (req) => req.path === '/api/health',
+})
+app.use(limiter)
 
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/servers', serverRoutes)
-app.use('/api/stats', statsRoutes)
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'API is running' })
 })
 
-// WebSocket Events
+// WebSocket
 io.on('connection', (socket) => {
   console.log('🔌 User connected:', socket.id)
 
   socket.on('join-server', (serverId: string) => {
     socket.join(`server:${serverId}`)
     console.log(`👤 User joined server: ${serverId}`)
-  })
-
-  socket.on('console-input', (data: { serverId: string; command: string }) => {
-    io.to(`server:${data.serverId}`).emit('console-output', {
-      message: `> ${data.command}`,
-      timestamp: new Date(),
-    })
   })
 
   socket.on('disconnect', () => {
@@ -68,6 +64,6 @@ const PORT = process.env.API_PORT || 3001
 
 httpServer.listen(PORT, () => {
   console.log(`\n🚀 PlayHost API Server running on port ${PORT}`)
-  console.log(`📊 Dashboard: http://localhost:3000`)
+  console.log(`🖥️ Dashboard: http://localhost:3000`)
   console.log(`🔌 WebSocket: ws://localhost:${PORT}\n`)
 })
